@@ -1,0 +1,93 @@
+/* Global Styles */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
+:root {
+  --primary-color: #E50914; /* Netflix Red */
+  --background-color: #141414; /* Netflix Black */
+  --card-background-color: #2f2f2f;
+  --text-color: #fff;
+  --text-color-secondary: #b3b3b3;
+  --input-background: #333;
+}
+
+body {
+  background-color: var(--background-color);
+  color: var(--text-color);
+  font-family: 'Roboto', sans-serif;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Roboto', sans-serif; /* Keep headings readable, use Bebas mainly for Brand/Titles */
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+a {
+  color: var(--text-color);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+a:hover {
+  color: var(--text-color-secondary);
+  text-decoration: none;
+}
+
+/* Scrollbar Customization */
+::-webkit-scrollbar {
+  width: 8px;
+  background-color: var(--background-color);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #555;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #777;
+}
+
+/* Button Styles - General Override */
+.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+  background-color: #c11119;
+  border-color: #c11119;
+}
+
+/* Form Styles Override */
+.form-container {
+  background-color: rgba(0, 0, 0, 0.75);
+  padding: 60px 68px 40px;
+  border-radius: 4px;
+  max-width: 450px;
+  margin: 0 auto;
+  min-height: 500px;
+}
+
+.form-control {
+  background-color: #333;
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  height: 50px;
+}
+
+.form-control:focus {
+  background-color: #444;
+  color: #fff;
+  box-shadow: none;
+  border-bottom: 2px solid #e87c03;
+}
+
+.form-floating > label {
+  color: #8c8c8c;
+}

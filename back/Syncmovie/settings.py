@@ -43,7 +43,11 @@ SECRET_KEY = get_secret("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+ALLOWED_HOSTS = [
+    '127.0.0.1', 
+    'localhost', 
+    'https://port-0-syncmovie-mjj9gba6c7a2c78b.sel3.cloudtype.app',
+    ]
 
 
 # Application definition

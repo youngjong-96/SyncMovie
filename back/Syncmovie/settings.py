@@ -101,7 +101,11 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:5173',
     'http://localhost:5173',
-    'https://port-0-syncmovie-mjj9gba6c7a2c78b.sel3.cloudtype.app',
+    'https://syncmovie.netlify.app/',
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://syncmovie.netlify.app/',
 ]
 
 ROOT_URLCONF = 'Syncmovie.urls'

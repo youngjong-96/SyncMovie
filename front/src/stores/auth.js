@@ -8,7 +8,7 @@ export const useAuthStore = defineStore('auth', () => {
   const userProfile = ref(null) // Added state for user profile
   const isLoggedIn = computed(() => !!token.value)
   const router = useRouter()
-  const API_URL = 'http://127.0.0.1:8000'
+  const API_URL = import.meta.env.VITE_API_URL
 
   // 회원가입
   const signUp = function (payload) {

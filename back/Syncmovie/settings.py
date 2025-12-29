@@ -86,6 +86,7 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:5173',
     'http://localhost:5173',
+    'https://sync-movie.vercel.app/',
 ]
 
 ROOT_URLCONF = 'Syncmovie.urls'
@@ -110,6 +111,7 @@ WSGI_APPLICATION = 'Syncmovie.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+
 
 DATABASES = {
     'default': dj_database_url.config(

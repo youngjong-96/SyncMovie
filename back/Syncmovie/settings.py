@@ -86,7 +86,7 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:5173',
     'http://localhost:5173',
-    'https://sync-movie.vercel.app/',
+    'https://sync-movie.vercel.app',
 ]
 
 ROOT_URLCONF = 'Syncmovie.urls'

@@ -2,18 +2,21 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
+
 from django.shortcuts import get_object_or_404, get_list_or_404
 from django.core.paginator import Paginator
-import random
+from django.core.cache import cache
+from django.db.models import Q
+
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
+import random
+import re
 import numpy as np
 
 from .models import Movie, Review
 from .serializers import MovieListSerializer, MovieDetailSerializer, ReviewSerializer
-
-import re
-from django.db.models import Q
 
 
 # 영화 목록 조회 및 장르별 추천 뷰
@@ -73,156 +76,80 @@ def like_movie(request, movie_pk):
 # 알고리즘 기반 영화 추천 뷰
 # 사용자가 선택한 영화 목록(movie_ids)을 기반으로, 줄거리(overview) 유사도 또는 배우(actors) 기반으로
 # 비슷한 영화를 찾아 추천해줌
+def simple_korean_tokenizer(text):
+    return re.findall(r'[가-힣a-zA-Z0-9]+', text)
+
 @api_view(['POST'])
 def recommend_movies(request):
     data = request.data
-    movie_ids = data.get('movie_ids')  # 🔹 movie_ids 리스트로 변경
+    movie_ids = data.get('movie_ids')
     recommendation_type = data.get('type')
 
-    print('data:', data)  # 전체 데이터 확인
-    print('movie_ids:', movie_ids)  # 리스트 확인
-    print('type:', recommendation_type)
-
-    # 리스트 검증
     if not movie_ids or not isinstance(movie_ids, list) or len(movie_ids) == 0:
         return Response({'error': 'movie_ids must be a non-empty list'}, 
-                       status=status.HTTP_400_BAD_REQUEST)
+                         status=status.HTTP_400_BAD_REQUEST)
 
-    base_movies = get_list_or_404(Movie, pk__in=movie_ids)  # 🔹 여러 영화
+    # --- 캐싱 로직 시작 ---
+    cache_key = f"recommend_data_{recommendation_type}"
+    cached_data = cache.get(cache_key)
 
-    # # 각 영화 정보 출력
-    # for movie in base_movies:
-    #     print(f"base_movie {movie.id}: {movie.title}")
-    #     print('overview:', movie.overview)
-    #     print('genres:', [g.name for g in movie.genres.all()])
+    if cached_data:
+        # 캐시된 데이터가 있으면 바로 사용
+        vectorizer, tfidf_matrix, all_movies_list = cached_data
+    else:
+        # 캐시가 없으면 데이터 로드 및 계산 (최초 1회 또는 캐시 만료 시)
+        all_movies_qs = Movie.objects.all().prefetch_related('actors', 'genres')
+        all_movies_list = list(all_movies_qs)
+        
+        if recommendation_type == 'overview':
+            contents = [f"{m.overview or ''}" for m in all_movies_list]
+        elif recommendation_type == 'actors':
+            def build_text(m):
+                actors = m.actors.values_list('name', flat=True)[:5]
+                norm_actors = ['_'.join(n.split()) for n in actors]
+                director = '_'.join(m.director.split()) if m.director else ''
+                return ' '.join(norm_actors + ([director] if director else []))
+            contents = [build_text(m) for m in all_movies_list]
+        else:
+            return Response({'error': 'Invalid type'}, status=status.HTTP_400_BAD_REQUEST)
 
-    if recommendation_type == 'overview':
-        all_movies = Movie.objects.exclude(pk__in=movie_ids)
-        
-        candidate_contents = [
-            (movie.overview or '') + ' ' + ' '.join(g.name.lower() for g in movie.genres.all())
-            for movie in all_movies
-        ]
-        
-        base_contents = [
-            (movie.overview or '') + ' ' + ' '.join(g.name.lower() for g in movie.genres.all())
-            for movie in base_movies
-        ]
-        
-        all_contents = base_contents + candidate_contents
-        
-        # vectorizer = TfidfVectorizer(stop_words='english')
-        # tfidf_matrix = vectorizer.fit_transform(all_contents)
-        
-        def simple_korean_tokenizer(text):
-            # 한글, 영어만 추출 + 공백으로 분리
-            korean = re.findall(r'[가-힣a-zA-Z]+', text)
-            return korean
-
-        TMDB_stopwords = [
-            # 기본 조사/조사사
-            '의', '가', '에', '들', '는', '을', '를', '이', '와', '로', '으로', '에서',
-            
-            # 동사/형용사 (줄거리에서 덜 중요)
-            '이다', '되다', '있다', '되', '하는', '한다', '할', '수', '있', '만', '것',
-            
-            # 영화 도메인 (모든 영화에 공통)
-            '영화', '영화의', '영화는', '감독', '배우', '출연', '등장', '주연', '조연',
-            
-            # 줄거리 공통 표현
-            '이야기', '이야기를', '전개', '사람', '세계', '시작', '끝', '사실', '현실',
-            
-            # 시간/순서
-            '첫', '두', '세', '마지막', '최종', '시작', '끝나', '결국', '그러나',
-            
-            # 부사/접속사
-            '정말', '매우', '너무', '그리고', '하지만', '그러나', '그래서', '그러면'
-        ]
-        
         vectorizer = TfidfVectorizer(
-            lowercase=True,
             tokenizer=simple_korean_tokenizer,
-            stop_words=TMDB_stopwords + ['english'],
-            ngram_range=(1, 3),
-            max_features=5000  # 상위 5000단어만
-        )
-        tfidf_matrix = vectorizer.fit_transform(all_contents)
-        
-        base_vecs = tfidf_matrix[0:len(base_contents)].toarray()
-        user_vec = np.mean(base_vecs, axis=0)
-        user_vec_2d = user_vec.reshape(1, -1)
-        
-        candidate_vecs = tfidf_matrix[len(base_contents):].toarray()
-        
-        cosine_sim = cosine_similarity(user_vec_2d, candidate_vecs).flatten()
-        
-        # 🔥 가장 안전한 방법
-        top_indices = cosine_sim.argsort()[::-1][:10]
-        similar_indices = [int(idx) for idx in top_indices]
-        
-        print(f"Top indices: {similar_indices}")  # 디버깅용
-        
-        recommended_movies = [all_movies[i] for i in similar_indices]
-    
-    elif recommendation_type == 'actors':
-        all_movies = Movie.objects.exclude(pk__in=movie_ids)
-        
-        # 0. 이름 정규화 함수: '톰 홀랜드' -> '톰_홀랜드'
-        def normalize_person_name(name: str) -> str:
-            if not name:
-                return ''
-            # 공백을 언더스코어로 치환해서 한 토큰으로 유지
-            return '_'.join(name.split())
-
-        # 1. feature 텍스트 생성 (배우 5명 + 감독, 이름은 한 토큰으로)
-        def build_feature_text(movie):
-            actor_names = movie.actors.values_list('name', flat=True)[:5]
-            norm_actors = [normalize_person_name(n) for n in actor_names]
-            director = normalize_person_name(movie.director) if movie.director else ''
-            tokens = norm_actors + ([director] if director else [])
-            return ' '.join(tokens)  # '톰_홀랜드 로버트_다우니_주니어' 형태
-        
-        # # 1. feature 텍스트 생성 (실시간 전처리)
-        # candidate_features = [
-        #     ' '.join(movie.actors.values_list('name', flat=True)[:5]) + ' ' + (movie.director or '')
-        #     for movie in all_movies
-        # ]
-        
-        # base_features = [
-        #     ' '.join(movie.actors.values_list('name', flat=True)[:5]) + ' ' + (movie.director or '')
-        #     for movie in base_movies
-        # ]
-        candidate_features = [build_feature_text(movie) for movie in all_movies]
-        base_features = [build_feature_text(movie) for movie in base_movies]
-        
-        # 2. TF-IDF (overview와 동일)
-        all_features = base_features + candidate_features
-        
-        vectorizer = TfidfVectorizer(
-            lowercase=True,
-            ngram_range=(1, 1),
+            stop_words=['의', '가', '에', '들', '는', '을', '를', '이', '와', '로', '으로', '에서'],
             max_features=5000
         )
-        tfidf_matrix = vectorizer.fit_transform(all_features)
+        tfidf_matrix = vectorizer.fit_transform(contents)
         
-        base_vecs = tfidf_matrix[0:len(base_features)].toarray()
-        user_vec = np.mean(base_vecs, axis=0)
-        user_vec_2d = user_vec.reshape(1, -1)
-        
-        candidate_vecs = tfidf_matrix[len(base_features):].toarray()
-        cosine_sim = cosine_similarity(user_vec_2d, candidate_vecs).flatten()
-        
-        # 3. 상위 10개 (overview와 동일)
-        top_indices = cosine_sim.argsort()[::-1][:10]
-        similar_indices = [int(idx) for idx in top_indices]
-        
-        recommended_movies = [all_movies[i] for i in similar_indices]
+        # 결과를 캐시에 저장 (유효기간 1시간 = 3600초)
+        cache.set(cache_key, (vectorizer, tfidf_matrix, all_movies_list), 3600)
+    # --- 캐싱 로직 끝 ---
 
-    else:
-        return Response({'error': 'Invalid recommendation type'}, status=status.HTTP_400_BAD_REQUEST)
-    
+    # 1. 입력받은 movie_ids에 해당하는 인덱스 찾기
+    # 캐시된 all_movies_list 내에서 base_movie들의 위치를 찾습니다.
+    movie_id_to_idx = {movie.id: i for i, movie in enumerate(all_movies_list)}
+    base_indices = [movie_id_to_idx[m_id] for m_id in movie_ids if m_id in movie_id_to_idx]
+
+    if not base_indices:
+        return Response({'error': 'Movies not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    # 2. Sparse Matrix 연산
+    base_vecs = tfidf_matrix[base_indices]
+    user_vec = base_vecs.mean(axis=0)
+
+    # 3. 모든 영화와의 유사도 계산
+    cosine_sim = cosine_similarity(user_vec, tfidf_matrix).flatten()
+
+    # 4. 자기 자신(입력 영화) 제외하고 상위 10개 추출
+    # 입력 영화들의 인덱스 점수를 0으로 만들어 추천에서 제외
+    for idx in base_indices:
+        cosine_sim[idx] = -1
+
+    top_indices = cosine_sim.argsort()[::-1][:10]
+    recommended_movies = [all_movies_list[i] for i in top_indices]
+
     serializer = MovieListSerializer(recommended_movies, many=True)
     return Response(serializer.data)
+
 
 # 랜덤 영화 추천 뷰
 # 전체 영화 중 특정 영화(exclude)를 제외하고 지정된 개수(num)만큼 랜덤하게 추출하여 반환함

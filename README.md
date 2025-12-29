@@ -94,10 +94,16 @@ TMDB에서 제공되는 영화 정보를 활용 목적에 맞게 전처리하여
 
 
 ## DB 모델링 (ERD)
-- 작성예정
+![ERD](document/ERD.png)
 
 ## 추천 알고리즘에 대한 기술적 설명
-- 작성예정
+| 구분 | 줄거리/장르 추천 | 인물 추천 |
+| --- | --- | --- |
+| 입력 데이터 | overview + genres | actors[:5] + director |
+| 토크나이저 | 한글/영문 추출 + 불용어 | 이름 정규화(_) |
+| N-gram | (1,3) - 표현 다양성 | (1,1) - 이름 정확도 |
+| 취향 반영 | 스토리/장르 선호 | 배우/감독 선호 |
+| 강점 | 내용적 유상성 | 캐스팅 선호 직관적 |
 
 ## 핵심 기능에 대한 설명
 1.  회원가입 시 닉네임을 추천해주는 기능
@@ -113,8 +119,8 @@ TMDB에서 제공되는 영화 정보를 활용 목적에 맞게 전처리하여
     ```
 
 2. 영화 추천 기능
-    - 줄거리 기반 추천 기능: 사용자가 선택하는 영화의 줄거리를 기반으로 유사한 줄거리의 영화를 추천
-    - 인물 기반 추천 기능: 사용자가 선택하는 영화의 출연배우를 기반으로 동일 배우가 출연하는 영화를 추천
+    - 줄거리 기반 추천 기능: 사용자가 선택하는 영화의 줄거리 및 장르를 기반으로 코사인 유사도를 통해 유사도가 높은 영화를 추천
+    - 인물 기반 추천 기능: 사용자가 선택하는 영화의 출연배우 및 감독을 기반으로 코사인 유사도를 통해 유사도가 높은 영화를 추천
 
 3. 영화 검색 기능
     - 영화의 제목을 기반으로 사용자가 입력한 검색어가 포함된 제목을 출력
@@ -122,23 +128,63 @@ TMDB에서 제공되는 영화 정보를 활용 목적에 맞게 전처리하여
 ## 생성형 AI를 활용한 부분
 - 회원가입 시 닉네임을 추천해주는 기능(핵심 기능에서 설명)
 
-## 서비스 URL(배포했을 경우)
-- 작성예정
+## 서비스 URL
+- https://syncmovie.netlify.app/
+- CloudType + Netlify
 
 ## 어려웠던 점
 
 1. 회원가입, 로그인, 비밀번호 변경 시 유효성 검사와 인증의 어려움 + UX 개선의 필요성
-    - 
+    - 초기 유효성 검사 후 인증이 불가한 경우 error log를 개발자도구에서만 확인 가능 -> 사용자가 원인을 알 수 있도록 개선 필요했음
+    - 개선 과정에서 error log에 따라 "ID가 없는 경우", "비밀번호가 잘못된 경우", "이미 있는 ID인 경우" 등 사용자에게 구체적인 원인을 구분해서 알려주는게 어려웠음
+    - 특히 "비밀번호 변경"의 경우 비밀번호 없이 사용자를 구분해야 하는 점이 어려웠음
+        - 기타 이메일 인증이나 비밀번호 확인 질문 등을 사용해야 하지만 USER ID를 사이트에서 노출하지 않고 비밀번호를 찾는 키로 활용하는 방법으로 대체
 
 2. Modal 띄우기(예고편, 추천 선택)
-    - 
+    - 초기에는 추천 기능을 페이지로 구분해서 동작되게 구성
+    - UI 측면에서 Modal로 띄우는 것이 더 적합할 것으로 판단하여 변경
+    - 구조를 변경하는 과정에서 연결된 다른 기능들에 예상치 못한 오류 발생
 
 3. DB 선정
-    - kaggle 에서 TMDB 전체 DB 다운로드
-    - TMDB API(Popularity)
+    - kaggle 에서 TMDB 전체 DB 다운로드 (초기)
+    - TMDB API(Popularity) (최종)
 
 ## 기타 기획 및 설계 문서
 - Vue 컴포넌트 트리
-- 요구사항 정의서
-- Use Case Diagram
+![tree](document/vueTree.png)
 - API 명세서
+1. 인증 (Authentication)(기본적인 회원가입 및 로그인은 dj_rest_auth 라이브러리를 사용)
+    - Base URL: /accounts/
+        - POST /signup/: 회원가입 (dj_rest_auth.registration.urls)
+        - POST /login/: 로그인
+        - POST /logout/: 로그아웃
+        - POST /password/change/: 비밀번호 변경
+        - POST /password/reset/: 비밀번호 초기화 이메일 발송
+2. 사용자 계정 (Accounts)
+- Base URL: /api/v1/accounts/
+    - GET /profile/: 내 프로필 조회
+    - GET /profile/int:user_id/: 특정 사용자 프로필 조회
+    - POST /check-username/: 아이디 중복 확인 (Body: username)
+    - GET /check-username/: 아이디 중복 확인 (Query: ?username=...)
+    - POST /reset-password/: 비밀번호 재설정 (Body: username, password, password2)
+    - DELETE /delete/: 회원 탈퇴
+    - GET /recommend-nickname/: AI 기반 닉네임 추천
+    - GET /check-nickname/: 닉네임 중복 확인 (Query: ?nickname=...)
+3. 영화 (Movies)
+- Base URL: /api/v1/
+    - GET /movies/: 영화 목록 조회
+        - Query: ?genre=장르명 (특정 장르 랜덤 추천 10개)
+        - Query 없음: 인기도 상위 100개 중 10개 랜덤 추천
+    - GET /movies/int:movie_pk/: 영화 상세 정보 조회
+    - POST /movies/int:movie_pk/likes/: 영화 좋아요 토글 (좋아요/취소)
+    - GET /movies/random/: 랜덤 영화 추천
+        - Query: ?num=개수 (기본 10), ?exclude=id1,id2 (제외할 영화 ID)
+    - GET /movies/search/: 영화 검색
+        - Query: ?q=검색어
+    - POST /recommend/: 알고리즘 기반 영화 추천
+        - Body: { "movie_ids": [id1, id2, ...], "type": "overview" | "actors" }
+4. 리뷰 (Reviews)
+- Base URL: /api/v1/movies/
+    - GET /int:movie_pk/reviews/: 해당 영화의 리뷰 목록 조회
+    - POST /int:movie_pk/reviews/: 해당 영화에 리뷰 작성
+    - DELETE /int:movie_pk/reviews/int:review_pk/: 리뷰 삭제

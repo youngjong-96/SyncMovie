@@ -16,23 +16,18 @@ from django.core.exceptions import ImproperlyConfigured
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-def get_secret(setting):
-    """환경 변수에서 값을 가져오고, 없으면 secrets.json 확인 (로컬 호환성용)"""
-    # 먼저 시스템 환경 변수(Cloudtype 설정값) 확인
-    value = os.environ.get(setting)
-    if value:
-        return value
-    
-    # 환경 변수가 없으면 로컬의 secrets.json 확인 (개발 환경용)
-    secret_file = os.path.join(BASE_DIR, 'secrets.json')
-    if os.path.exists(secret_file):
-        with open(secret_file) as f:
-            secrets = json.loads(f.read())
-            return secrets.get(setting)
+secret_file = os.path.join(BASE_DIR, 'secrets.json')  # secrets.json 파일 위치를 명시
 
-    # 둘 다 없으면 에러 발생
-    error_msg = f"Set the {setting} environment variable or secrets.json"
-    raise ImproperlyConfigured(error_msg)
+with open(secret_file) as f:
+    secrets = json.loads(f.read())
+
+def get_secret(setting):
+    """비밀 변수를 가져오거나 명시적 예외를 반환한다."""
+    try:
+        return secrets[setting]
+    except KeyError:
+        error_msg = "Set the {} environment variable".format(setting)
+        raise ImproperlyConfigured(error_msg)
 
 
 SECRET_KEY = get_secret("SECRET_KEY")
@@ -43,7 +38,7 @@ SECRET_KEY = get_secret("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
 
 
 # Application definition
@@ -98,17 +93,9 @@ MIDDLEWARE = [
     'allauth.account.middleware.AccountMiddleware',
 ]
 
-# CORS_ALLOWED_ORIGINS = [
-#     'http://127.0.0.1:5173',
-#     'http://localhost:5173',
-#     'https://syncmovie.netlify.app',
-# ]
-
-CORS_ALLOW_ALL_ORIGINS = True # 일단 모든 문을 열어 통신 성공부터 확인합시다!
-CORS_ALLOW_CREDENTIALS = True
-
-CSRF_TRUSTED_ORIGINS = [
-    'https://syncmovie.netlify.app',
+CORS_ALLOWED_ORIGINS = [
+    'http://127.0.0.1:5173',
+    'http://localhost:5173',
 ]
 
 ROOT_URLCONF = 'Syncmovie.urls'

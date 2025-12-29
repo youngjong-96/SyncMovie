@@ -1,11 +1,9 @@
 
 from django.contrib import admin
 from django.urls import path, include
-from django.http import HttpResponse
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', lambda r: HttpResponse("OK")),
     path('api/v1/', include('movies.urls')),
     path('api/v1/accounts/', include('accounts.urls')),
     path('accounts/', include('dj_rest_auth.urls')),

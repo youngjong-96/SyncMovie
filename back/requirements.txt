@@ -7,6 +7,7 @@ cffi==2.0.0
 charset-normalizer==3.4.4
 cryptography==46.0.3
 distro==1.9.0
+dj-database-url==3.0.1
 dj-rest-auth==7.0.1
 Django==4.2.16
 django-allauth==64.0.0
@@ -14,6 +15,7 @@ django-cors-headers==4.9.0
 djangorestframework==3.14.0
 google-auth==2.45.0
 google-genai==1.56.0
+gunicorn==23.0.0
 h11==0.16.0
 httpcore==1.0.9
 httpx==0.28.1
@@ -21,6 +23,8 @@ idna==3.11
 joblib==1.5.3
 numpy==2.4.0
 oauthlib==3.3.1
+packaging==25.0
+psycopg2-binary==2.9.11
 pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pycparser==2.23

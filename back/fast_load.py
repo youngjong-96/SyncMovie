@@ -1,6 +1,7 @@
 import os
 import json
 import django
+from django import db
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Syncmovie.settings')
 django.setup()
@@ -30,7 +31,8 @@ def run():
                 
                 # 100개가 아니라 10개 단위로 찍어서 멈춤 현상을 더 빨리 파악합시다.
                 if i % 10 == 0:
-                    print(f"현재 {i}번째 데이터 처리 중... (PK: {item['pk']})")
+                    db.reset_queries() # 메모리에 쌓인 쿼리 로그를 비워줍니다.
+                    print(f"메모리 최적화 및 {i}번째 진행 중...")
                     
             except Exception as e:
                 print(f"에러 발생 (PK {item.get('pk')}): {e}")

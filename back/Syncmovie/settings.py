@@ -83,14 +83,19 @@ MIDDLEWARE = [
     'allauth.account.middleware.AccountMiddleware',
 ]
 
-# CORS_ALLOWED_ORIGINS = [
-#     'http://127.0.0.1:5173',
-#     'http://localhost:5173',
-#     'https://sync-movie.vercel.app',
-# ]
+CORS_ALLOWED_ORIGINS = [
+    'http://127.0.0.1:5173',
+    'http://localhost:5173',
+    'https://sync-movie.vercel.app',
+]
 
-CORS_ALLOW_ALL_ORIGINS = True 
-CORS_ALLOW_CREDENTIALS = True
+# CORS_ALLOW_ALL_ORIGINS = True 
+# CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://your-frontend.vercel.app",
+    "https://urban-sheila-kathryn-youngjong-4d8816dc.koyeb.app" # 본인 백엔드 주소도 추가
+]
 
 ROOT_URLCONF = 'Syncmovie.urls'
 
